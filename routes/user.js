@@ -1,5 +1,5 @@
 const express = require("express");
-const { User ,Team} = require("../db");
+const { User, Team } = require("../db");
 const userMiddleware = require("../middleware/user");
 const app = express();
 const mongoose = require("mongoose");
@@ -24,13 +24,11 @@ app.post("/signup", async (req, res) => {
   const response = check({ username, password, age });
 
   // If validation fails, respond with an error
-
   if (!response.success) {
     return res.json({
       response: "not success",
       msg: response.error.issues.map(issue => issue.message).join(", ")  // Combine validation errors into a single string
     });
- 
   }
 
   try {
@@ -71,29 +69,30 @@ app.post('/createTeam', async (req, res) => {
   const { teamName, members } = req.body;
 
   try {
-      const users = await User.find({ username: { $in: members } });
+    const users = await User.find({ username: { $in: members } });
 
-      if (users.length !== members.length) {
-          return res.status(400).json({ message: 'Some usernames do not exist.' });
-      }
+    if (users.length !== members.length) {
+      return res.status(400).json({ message: 'Some usernames do not exist.' });
+    }
 
-      const newTeam = new Team({
-          teamName: teamName,
-          members: users.map(user => user.username) // Storing member usernames
-      });
+    const newTeam = new Team({
+      teamName: teamName,
+      members: users.map(user => user.username), // Storing member usernames
+      score: 0  // Initialize score for the new team
+    });
 
-      await newTeam.save();
-      await User.updateMany(
-        { username: { $in: members } }, // Find users in the members array
-        { $set: { teamName: teamName } } // Update the teamName field for each user
+    await newTeam.save();
+    await User.updateMany(
+      { username: { $in: members } }, // Find users in the members array
+      { $set: { teamName: teamName } } // Update the teamName field for each user
     );
-      res.status(200).json({ message: 'Team created successfully!' });
-      
+    res.status(200).json({ message: 'Team created successfully!' });
 
   } catch (err) {
-      res.status(500).json({ error: 'Server error.' });
+    res.status(500).json({ error: 'Server error.' });
   }
 });
+
 app.get("/checkUserTeam", async (req, res) => {
   try {
     const username = req.query.username; // Get username from query parameters
@@ -126,35 +125,63 @@ app.get("/checkUserTeam", async (req, res) => {
   }
 });
 
-      
-
-
-app.get("/getTeam",async (req,res)=>{
-
+app.get("/getTeam", async (req, res) => {
   try {
-    
-    const teamName = req.query.teamName;
+    const username = req.query.username;
 
+    // Find user by username
+    const user = await User.findOne({ username: username });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
 
-    // Check if the user already exists
-    const team = await Team.findOne({ teamName:teamName });
+    const teamName = user.teamName;
+    if (!teamName) {
+      return res.status(404).json({ message: 'User does not belong to any team.' });
+    }
+
+    // Find the team by teamName
+    const team = await Team.findOne({ teamName: teamName });
     if (team) {
-      
-        res.status(200).json({
-          check:true,
-          team:team});
-      
+      res.status(200).json({
+        check: true,
+        team: team
+      });
+    } else {
+      return res.status(404).json({
+        check: false,
+        message: 'Team not found.'
+      });
     }
-    else{
-      return res.status(404).json({ 
-        check:false,
-        message: 'Team not found.' });
-    }
-}
-catch(err)
-{
-      console.error(err);
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error.' });
-}})
+  }
+});
+
+
+// New endpoint to update the team's score
+app.post('/updateScore', async (req, res) => {
+  const { teamName, score } = req.body;
+  console.log(`Updating score for team: ${teamName}, Score to add: ${score}`); // Log the incoming data
+  try {
+    const team = await Team.findOne({ teamName: teamName });
+    if (!team) {
+      return res.status(404).json({ message: 'Team not found.' });
+    }
+
+    team.score += score;
+    await team.save();
+    console.log(`New score for team ${teamName}: ${team.score}`); // Log the updated score
+
+    res.status(200).json({
+      message: 'Score updated successfully!',
+      team: team
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
 
 module.exports = app;
