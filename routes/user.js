@@ -1,5 +1,5 @@
 const express = require("express");
-const { User } = require("../db");
+const { User ,Team} = require("../db");
 const userMiddleware = require("../middleware/user");
 const app = express();
 const mongoose = require("mongoose");
@@ -66,5 +66,95 @@ app.get("/login", userMiddleware, async (req, res) => {
     success: true
   });
 });
+
+app.post('/createTeam', async (req, res) => {
+  const { teamName, members } = req.body;
+
+  try {
+      const users = await User.find({ username: { $in: members } });
+
+      if (users.length !== members.length) {
+          return res.status(400).json({ message: 'Some usernames do not exist.' });
+      }
+
+      const newTeam = new Team({
+          teamName: teamName,
+          members: users.map(user => user.username) // Storing member usernames
+      });
+
+      await newTeam.save();
+      await User.updateMany(
+        { username: { $in: members } }, // Find users in the members array
+        { $set: { teamName: teamName } } // Update the teamName field for each user
+    );
+      res.status(200).json({ message: 'Team created successfully!' });
+      
+
+  } catch (err) {
+      res.status(500).json({ error: 'Server error.' });
+  }
+});
+app.get("/checkUserTeam", async (req, res) => {
+  try {
+    const username = req.query.username; // Get username from query parameters
+
+    // Find user by username
+    const user = await User.findOne({ username: username });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    // Check if user has a teamName
+    const { teamName } = user;
+    if (!teamName) {
+      return res.status(200).json({ exists: false, message: 'No team assigned.' });
+    }
+
+    // If teamName exists, check if the team exists and return details
+    const team = await Team.findOne({ teamName: teamName });
+    if (team) {
+      return res.status(200).json({
+        exists: true,
+        team: team // Return team details if found
+      });
+    } else {
+      return res.status(404).json({ exists: false, message: 'Team not found.' });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+      
+
+
+app.get("/getTeam",async (req,res)=>{
+
+  try {
+    
+    const teamName = req.query.teamName;
+
+
+    // Check if the user already exists
+    const team = await Team.findOne({ teamName:teamName });
+    if (team) {
+      
+        res.status(200).json({
+          check:true,
+          team:team});
+      
+    }
+    else{
+      return res.status(404).json({ 
+        check:false,
+        message: 'Team not found.' });
+    }
+}
+catch(err)
+{
+      console.error(err);
+    res.status(500).json({ error: 'Server error.' });
+}})
 
 module.exports = app;
