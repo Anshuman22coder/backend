@@ -11,13 +11,17 @@ const UserSchema = new mongoose.Schema({
   username: String,
   password: String,
   age: Number,
-  teamName:String
+  teamName: String
 });
 
-// Defining Team schema with members as an array of usernames
+// Defining Team schema with members as an array of usernames and a score field
 const TeamSchema = new mongoose.Schema({
   teamName: String,
-  members: [String]  // Array to store multiple usernames
+  members: [String],   // Array to store multiple usernames
+  score: {             // Adding a score field
+    type: Number,
+    default: 0         // Initialize with 0 score by default
+  }
 });
 
 // Creating models for User and Team
