@@ -10,7 +10,7 @@ const userRouter = require("./routes/user");
 app.use(bodyParser.json());
 app.use("/user",userRouter)
 
-const PORT = process.env.PORT || 3000; // Use environment variable for port
+const PORT =  3000; // Use environment variable for port
 app.listen(PORT,()=>
 {
   console.log(`Server is running on port ${PORT}`);
